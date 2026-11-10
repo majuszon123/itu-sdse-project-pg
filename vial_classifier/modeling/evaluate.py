@@ -13,7 +13,7 @@ import torch
 import os
 import json
 
-from vial_classifier.config import THRESHOLD
+from vial_classifier.config import THRESHOLD, ARTIFACT_DIR, DRIFT_BASELINE_STATS_PATH
 from vial_classifier.utils import get_device
 
 
