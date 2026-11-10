@@ -6,7 +6,6 @@ import torch
 from vial_classifier import config
 
 # check if GPU is avalible else falls back to CPU
-# this is from the notebook 01, cell 27
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

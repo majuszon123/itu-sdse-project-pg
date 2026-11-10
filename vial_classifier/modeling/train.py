@@ -16,50 +16,6 @@ from vial_classifier.modeling.model import SimpleCNN
 from vial_classifier.utils import get_device
 
 
-class SimpleCNN(nn.Module):
-    """
-    Simple CNN for binary classification of glass vial images.
-
-    Input: 64x64 RGB images (3 channels) - resized from native 1600x768
-    Output: Single logit (positive = defective, negative = clean)
-
-    Used for train_cnn_model function. 
-    """
-
-    def __init__(self):
-        super().__init__()
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-
-        # Max pooling
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Fully connected layers. After 2 max pooling layers: 64x64 -> 32x32 -> 16x16
-        self.fc1 = nn.Linear(64 * 16 * 16, 128)
-        self.fc2 = nn.Linear(128, 1)
-
-        # Activation and regularization
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.3)
-
-    def forward(self, x):
-        # Convolutional layers with ReLU and max pooling
-        x = self.pool(self.relu(self.conv1(x)))
-        x = self.pool(self.relu(self.conv2(x)))
-
-        # Flatten for fully connected layers
-        x = x.view(-1, 64 * 16 * 16)
-
-        # No sigmoid here: the model is trained with BCEWithLogitsLoss,
-        # callers apply torch.sigmoid for probabilities.
-        x = self.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.fc2(x)
-
-        return x
-
-
 def train_cnn_model(train_loader, val_loader, num_epochs=NUM_EPOCHS, learning_rate=LEARNING_RATE, device=None, random_seed=RANDOM_STATE):
     """Train the SimpleCNN model on glass vial images."""
 
@@ -91,7 +47,7 @@ def train_cnn_model(train_loader, val_loader, num_epochs=NUM_EPOCHS, learning_ra
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    # Halve the learning rate when validation macro-F1 plateaus (means to shrink the learning rate when progress stalls)
+    # Halve the learning rate when validation macro-F1 plateaus
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=SCHEDULER_PATIENCE)
 
     history = {
@@ -113,7 +69,7 @@ def train_cnn_model(train_loader, val_loader, num_epochs=NUM_EPOCHS, learning_ra
         all_train_preds = []
         all_train_labels = []
 
-        for images, labels in train_loader: # change: no enumerate: the batch index is never used
+        for images, labels in train_loader:
             images = images.to(device)
             labels = labels.float().to(device).view(-1, 1)
 
@@ -225,17 +181,13 @@ def tune_threshold(model, val_loader, device=None, threshold_range=None):
 
     Macro-F1 is used because maximizing the positive-class F1 alone rewards
     predicting "defective" for every image (defective is the majority class).
-
-    Put in the train file, because it is not dependent on the evaluate_cnn_model function 
     """
     device = device or get_device()
     if threshold_range is None:
         # Fine grid: the model's probabilities can compress into a narrow band
         threshold_range = [round(t, 3) for t in np.arange(0.025, 0.976, 0.025)]
 
-    print(f"\n{'='*60}")
     print("TUNING CLASSIFICATION THRESHOLD")
-    print(f"\n{'='*60}")
     print(f"Threshold range: {threshold_range}")
 
     model.eval()
