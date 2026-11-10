@@ -12,6 +12,7 @@ from vial_classifier.config import (
     SCHEDULER_PATIENCE,
     THRESHOLD,
 )
+
 from vial_classifier.modeling.model import SimpleCNN
 from vial_classifier.utils import get_device
 
@@ -47,7 +48,7 @@ def train_cnn_model(train_loader, val_loader, num_epochs=NUM_EPOCHS, learning_ra
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    # Halve the learning rate when validation macro-F1 plateaus
+    # Halve the learning rate when validation macro-F1 plateaus (means to shrink the learning rate when progress stalls)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=SCHEDULER_PATIENCE)
 
     history = {
@@ -69,7 +70,7 @@ def train_cnn_model(train_loader, val_loader, num_epochs=NUM_EPOCHS, learning_ra
         all_train_preds = []
         all_train_labels = []
 
-        for images, labels in train_loader:
+        for images, labels in train_loader: # change: no enumerate: the batch index is never used
             images = images.to(device)
             labels = labels.float().to(device).view(-1, 1)
 
@@ -181,13 +182,17 @@ def tune_threshold(model, val_loader, device=None, threshold_range=None):
 
     Macro-F1 is used because maximizing the positive-class F1 alone rewards
     predicting "defective" for every image (defective is the majority class).
+
+    Put in the train file, because it is not dependent on the evaluate_cnn_model function 
     """
     device = device or get_device()
     if threshold_range is None:
         # Fine grid: the model's probabilities can compress into a narrow band
         threshold_range = [round(t, 3) for t in np.arange(0.025, 0.976, 0.025)]
 
+    print(f"\n{'='*60}")
     print("TUNING CLASSIFICATION THRESHOLD")
+    print(f"\n{'='*60}")
     print(f"Threshold range: {threshold_range}")
 
     model.eval()
