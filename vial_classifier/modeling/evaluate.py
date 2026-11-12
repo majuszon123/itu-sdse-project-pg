@@ -10,8 +10,10 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 import torch
+import os
+import json
 
-from vial_classifier.config import THRESHOLD
+from vial_classifier.config import THRESHOLD, ARTIFACT_DIR, DRIFT_BASELINE_STATS_PATH
 from vial_classifier.utils import get_device
 
 
@@ -91,7 +93,13 @@ def evaluate_cnn_model(model, test_loader, device=None, threshold=THRESHOLD):
 def compute_baseline_statistics(
     model, data_loader, device=None, feature_layer="fc1", threshold=THRESHOLD
 ):
-    """Compute baseline statistics for drift detection from a dataset."""
+    """Compute baseline statistics for drift detection from a dataset.
+    
+    For drift detection we store the statistics of the model on the validation set as a baseline: 
+    image statistics per channel, class distribution, prediction distribution, confidence statistics, and the mean/std of the embeddings from the `fc1` layer. 
+    The serving endpoint compares live traffic against this baseline.
+    """
+
     device = device or get_device()
     print("\nComputing baseline statistics for drift detection...")
     print(f"Feature layer: {feature_layer}")
@@ -209,3 +217,23 @@ def compute_baseline_statistics(
 
     finally:
         handle.remove()
+
+def save_baseline_statistics(baseline_stats):
+    """Write the drift baseline JSON and log it to the active MLflow run.
+    This keeps the pipeline cleaner."""
+    os.makedirs(ARTIFACT_DIR, exist_ok=True)
+    with open(DRIFT_BASELINE_STATS_PATH, "w") as f:
+        json.dump(baseline_stats, f, indent=2)
+    print(f"Baseline statistics saved to {DRIFT_BASELINE_STATS_PATH}")
+
+    mlflow.log_metric("baseline_image_mean_r", baseline_stats["image_statistics"]["mean_r"])
+    mlflow.log_metric("baseline_image_mean_g", baseline_stats['image_statistics']['mean_g'])
+    mlflow.log_metric("baseline_image_mean_b", baseline_stats['image_statistics']['mean_b'])
+    mlflow.log_metric("baseline_image_std_r", baseline_stats['image_statistics']['std_r'])
+    mlflow.log_metric("baseline_image_std_g", baseline_stats['image_statistics']['std_g'])
+    mlflow.log_metric("baseline_image_std_b", baseline_stats['image_statistics']['std_b'])
+    mlflow.log_metric("baseline_class_0_count", baseline_stats['class_distribution']['class_0_count'])
+    mlflow.log_metric("baseline_class_1_count", baseline_stats['class_distribution']['class_1_count'])
+    mlflow.log_metric("baseline_confidence_mean", baseline_stats['confidence_statistics']['mean'])
+    mlflow.log_metric("baseline_confidence_std", baseline_stats['confidence_statistics']['std'])
+    mlflow.log_artifact(DRIFT_BASELINE_STATS_PATH, "drift_detection")

@@ -17,7 +17,7 @@ import torch
 from vial_classifier import config
 from vial_classifier.dataset import load_image_dataset, pull_data_from_dvc
 from vial_classifier.features import build_features
-from vial_classifier.modeling.evaluate import compute_baseline_statistics, evaluate_cnn_model
+from vial_classifier.modeling.evaluate import evaluate_cnn_model
 from vial_classifier.modeling.export import export_model
 from vial_classifier.modeling.model import SimpleCNN
 from vial_classifier.modeling.registry import (
@@ -68,30 +68,6 @@ def train():
     optimal_threshold = tune_threshold(cnn_model, val_loader)
     test_results = evaluate_cnn_model(cnn_model, test_loader, threshold=optimal_threshold)
 
-    # Drift baseline
-    baseline_stats = compute_baseline_statistics(
-        cnn_model, val_loader, threshold=optimal_threshold
-    )
-    with open(config.DRIFT_BASELINE_STATS_PATH, "w") as f:
-        json.dump(baseline_stats, f, indent=2)
-
-    mlflow.log_metric("baseline_image_mean_r", baseline_stats["image_statistics"]["mean_r"])
-    mlflow.log_metric("baseline_image_mean_g", baseline_stats["image_statistics"]["mean_g"])
-    mlflow.log_metric("baseline_image_mean_b", baseline_stats["image_statistics"]["mean_b"])
-    mlflow.log_metric("baseline_image_std_r", baseline_stats["image_statistics"]["std_r"])
-    mlflow.log_metric("baseline_image_std_g", baseline_stats["image_statistics"]["std_g"])
-    mlflow.log_metric("baseline_image_std_b", baseline_stats["image_statistics"]["std_b"])
-    mlflow.log_metric(
-        "baseline_class_0_count", baseline_stats["class_distribution"]["class_0_count"]
-    )
-    mlflow.log_metric(
-        "baseline_class_1_count", baseline_stats["class_distribution"]["class_1_count"]
-    )
-    mlflow.log_metric(
-        "baseline_confidence_mean", baseline_stats["confidence_statistics"]["mean"]
-    )
-    mlflow.log_metric("baseline_confidence_std", baseline_stats["confidence_statistics"]["std"])
-    mlflow.log_artifact(config.DRIFT_BASELINE_STATS_PATH, "drift_detection")
 
 
 
