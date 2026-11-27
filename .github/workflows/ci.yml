@@ -33,7 +33,7 @@ jobs:
           cache: false
 
       - name: Go unit tests
-        run: cd go && go test ./... -v
+        run: cd dagger && go test ./... -v
 
       - name: Lint + Python tests (Dagger)
         uses: dagger/dagger-for-github@v8.4.1
